@@ -1,0 +1,286 @@
+metadata:
+  title: Pachtvertrag für Landwirte
+  short title: Pachtvertrag
+  description: |
+    Der einfachste Weg einen Pachtvertrag Entwurf zu erstellen!
+  subtitle: |
+    This is the subtitle part.
+  authors:
+    - name: Felix Vemmer
+      organization: Vemmer Legal Tech
+---
+imports:
+  - num2words
+---
+mandatory: True
+code: |
+  intro_screen_shown
+  disclaimer_screen_shown
+---
+code: |
+  disclaimer_screen_shown = True
+  force_ask('disclaimer_screen')
+---
+ga id: PachtvertragIntroScreen
+question: Erstelle jetzt deinen Pachtvertrag mit wenigen Clicks!
+continue button field: intro_screen_shown
+
+subquestion: |
+
+  ${ static_image('undraw_browsing_online_sr8c' + '.svg') }
+
+---
+event: disclaimer_screen
+question: Doc-Generator Hinweis
+subquestion: |
+  ### Disclaimer
+  
+  This is not legal advice etc etc
+buttons:
+  - Ich akzeptiere und will das Interview weiterführen: continue
+  - Ich akzteptiere dies nicht: exit
+    url: https://www.google.de
+---
+objects:
+  - paechter: Individual
+  - verpaechter: Individual
+  - flaechen: DAList.using(object_type=Thing, complete_attribute='complete', there_are_any=True)
+  - zahlungsansprueche: DAList.using(object_type=Thing, complete_attribute='complete', there_are_any=zahlungsansprueche_yes_no)
+  - datum_teilbetraege: DAList.using(object_type=Thing, complete_attribute='complete', minimum_number=teil_betraege, maximum_number=teil_betraege)
+---
+code: |
+  flaechen[i].gemarkung
+  flaechen[i].flur
+  flaechen[i].flurstueck
+  flaechen[i].feldblock
+  flaechen[i].nutzungsart
+  flaechen[i].dgl
+  flaechen[i].groesse
+  flaechen[i].pachtpreis
+  flaechen[i].pacht = flaechen[i].groesse * flaechen[i].pachtpreis
+  flaechen[i].complete = True
+---
+code : |
+  zahlungsansprueche[i].identifikationsnummer
+  zahlungsansprueche[i].wert
+  zahlungsansprueche[i].besonderheiten
+  zahlungsansprueche[i].complete = True
+---
+code : |
+  datum_teilbetraege[i].name.text
+  datum_teilbetraege[i].formatted = format_date(datum_teilbetraege[i].name.text, format='d. MMMM')
+  datum_teilbetraege[i].complete = True
+---
+code : |
+  wert_landpacht = 0
+  
+  for flaeche in flaechen:
+    wert_landpacht += flaeche.pacht
+
+  wert_zahlungsansprueche = 0
+  
+  for zahlungsanspruch in zahlungsansprueche:
+      wert_zahlungsansprueche += zahlungsanspruch.wert
+
+  if zahlungsansprueche_yes_no:
+    gesamtpacht = wert_landpacht + wert_zahlungsansprueche
+  else:
+    gesamtpacht = wert_landpacht
+
+  gesamptpacht_worte = num2words.num2words(gesamtpacht, lang='de')   
+---
+question: |
+  Welche Flächten möchten Sie verpachten?
+fields:
+  - Germarkung: flaechen[i].gemarkung
+  - Flur: flaechen[i].flur
+  - Flurstück: flaechen[i].flurstueck
+  - Feldblock-Nr: flaechen[i].feldblock
+  - Nutzungsart: flaechen[i].nutzungsart
+    choices:
+    - Grünland
+    - Acker
+  - Dauergrünland: flaechen[i].dgl
+    datatype: yesnoradio
+  - Größe in ha laut Kataster: flaechen[i].groesse
+    datatype: number
+  - Pacht in EUR /ha: flaechen[i].pachtpreis
+    datatype: currency
+    min: 0
+list collect: True
+---
+question: |
+  Welche Zahlungsansprüch möchten Sie mitverpachten?
+fields:
+  - Intervall Identifikationsnummer: zahlungsansprueche[i].identifikationsnummer
+  - Wert des Zahlungsanspruches zu Beginn der Pacht: zahlungsansprueche[i].wert
+    datatype: currency
+    min: 0
+  - Besonderheiten: zahlungsansprueche[i].besonderheiten
+    input type: area
+    required: False
+list collect: True
+---
+question: |
+  An welchen Tag und Monat sollen die Teilbeträge gezahlt werden?
+fields: 
+  Tag und Monat: datum_teilbetraege[i].name.text
+  datatype: date
+list collect: True
+---
+question: |
+  Wie heißt der Name und Anschrift des Pächter?
+subquestion: |
+  Der Pächter pachtet das Land.
+fields:
+  - Vorname Pächter: paechter.name.first
+  - Nachname Pächter: paechter.name.last
+  - Addresse: paechter.address.address
+    address autocomplete: True
+  - Stadt: paechter.address.city
+  - PLZ: paechter.address.postal_code
+    required: False
+---
+question: |
+  Wie heißt der Name und Anscharift des Verpächter?
+subquestion: |
+  Der Verpächter verpachtet das Land an den Pächter.
+fields:
+  - Vorname Pächter: verpaechter.name.first
+  - Nachname Pächter: verpaechter.name.last
+  - Addresse: verpaechter.address.address
+    address autocomplete: True
+  - Stadt: verpaechter.address.city
+  - PLZ: verpaechter.address.postal_code
+    required: False
+---
+question: |
+  Wann beginnt und endet die Pacht?
+fields:
+  - Begin der Pacht: pacht_datum_start
+    datatype: date
+  - Ende der Pacht: pacht_datum_ende
+    datatype: date
+---
+question: |
+  Wann beginnt und endet das Pachtjahr?
+fields:
+  - Begin des Pachtjahrs: pacht_jahr_start
+    datatype: date
+  - Ende des Pachtjahrs: pacht_jahr_ende
+    datatype: date
+---
+question: |
+  Werden Zahlungsansprüche übertragen?
+yesno: zahlungsansprueche_yes_no
+---
+question: |
+  Welcher Übertragungszeitpunkt für die Zahlungsansprüche wird festgelegt?
+fields:
+  - Übertragungszeitpunkt: zahlungansprueche_datum
+    datatype: date
+---
+question: |
+  Wie lauten die Bankdetails des Pächters?
+fields:
+  - IBAN: iban
+  - BIC: bic
+  - Bank: bank
+---
+question: |
+  Wie soll die Pacht bezahlt werden? 
+field: zahlung
+buttons:
+  - in einer Summe
+  - in Teilbeträgen
+---
+question: |
+  In wie vielen Gleichen Teilbeträgen soll die Pacht bezahlt werden?
+fields:
+  - Teilbeträge: teil_betraege
+    datatype: range
+    min: 2
+    max: 12
+---
+code: |
+  teilpacht = gesamtpacht / teil_betraege
+---
+question: |
+  An dem wie vielten jeden Jahres soll die Pacht in einer Summe bezahlt werden?
+fields:
+  - Zahltag: zahltag
+    datatype: range
+    min: 1
+    max: 31
+    step: 1
+---
+question: |
+  An welchen Datum soll die Summe das erste mal gezahlt werden?
+fields:
+  - Datum: pachtzahlung_datum_start
+    datatype: date
+---
+question: |
+  Möchten Sie einen Leistungsvorbehalt vereinbaren?
+yesno: leistungsvorbehalt
+---
+question: |
+  Sofern besondere Umstände eintreten, nach wie vielen Jahren soll die Höhe des Pachtpreises überprüft werden?
+fields:
+  - Jahre: jahre
+    datatype: integer
+---
+question: |
+  Wer trägt die auf dem Pachtgegenstand ruhenden öffentlichen Abgaben und Lasten?
+subquestion: |
+  Abgaben und Lasten sind zum Beispiel:
+  
+  - Grundsteuer, 
+  - Beiträge zu Wasser- und Bodenverbänden
+  - Umlage zur Landwirtschaftskammer
+  - Flurbereinigung
+  - etc.
+fields:
+  - Kostenträger: kosten_oeffentlich
+    input type: radio
+    choices:
+      - Pächter
+      - Verpächter 
+---
+question: |
+  Wer trägt die Kosten, die in Zusammenhang mit diesem Vertrag entstehen?
+subquestion: |
+  Mit Kosten im Zusammenhang mit diesem Vertrag sind solche Kosten gemeint, die bei der Erstellung des Vertrages normalerweise anfallen (z.B. Versandkosten der Verträge).
+fields:
+  - Kostenträger: kosten_vertrag
+    input type: radio
+    choices:
+      - Pächter
+      - Verpächter 
+---
+question: |
+  Sollen zusätzliche Vereinbarungen getroffen werden?
+yesno: vereinbarungen
+---
+question: |
+  Welche Vereinbarungen sollen getroffen werden?
+fields:
+  - note: Bitte kreuzen Sie alle Vereinbarungen an die mit in den Vertrag sollen.
+  - Es darf kein Klärschlamm ausgebracht werden: schlamm
+    datatype: yesnowide
+  - Es darf der Weg benutzt werden: weg
+    datatype: yesnowide
+---
+ga id: PachtvertragFinished
+question: |
+  Pachtvertrag ist fertig.
+subquestion: |
+  Hier ist dein individueller Pachtvertrag!
+buttons:
+  - Exit: exit
+  - Restart: restart
+attachments:
+  - name: Pachtvertrag
+    filename: Pachtvertrag
+    docx template file: pachtvertrag.docx
+mandatory: True
